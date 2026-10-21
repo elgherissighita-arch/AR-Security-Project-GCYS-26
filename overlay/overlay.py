@@ -10,9 +10,14 @@ import cv2
 
 # OpenCV colors are BGR (not RGB)
 STATUS_COLORS = {
-    "secure": (40, 180, 40),        # green
-    "vulnerable": (0, 165, 255),    # orange
-    "compromised": (0, 0, 230),     # red
+    "secure": (40, 180, 40),
+    "allowed": (40, 180, 40),                # green
+    "vulnerable": (0, 165, 255),
+    "warning": (0, 165, 255),
+    "inspection required": (0, 165, 255),    # orange
+    "compromised": (0, 0, 230),
+    "restricted": (0, 0, 230),
+    "not allowed": (0, 0, 230),              # red
 }
 DEFAULT_COLOR = (180, 180, 180)
 WHITE = (255, 255, 255)
@@ -129,3 +134,48 @@ def draw_all(frame, detections, get_info, selected_index=None, alert_names=()):
             alert=(det["name"] in alert_names),
         )
     return frame
+
+
+class BoxSmoother:
+    """
+    Removes flickering: averages each box position over the last frames.
+    Usage:  smoother = BoxSmoother()
+            smooth_dets = smoother.update(detections)   # call each time YOLO runs
+    """
+    def __init__(self, alpha=0.4, max_dist=120, max_missing=5):
+        self.alpha = alpha              # lower = smoother but slower to follow
+        self.max_dist = max_dist        # max pixel jump to be the same object
+        self.max_missing = max_missing  # keep an object this many updates after it disappears
+        self.tracks = []
+
+    def update(self, detections):
+        for t in self.tracks:
+            t["seen"] = False
+        out = []
+        for det in detections:
+            box = [det["x1"], det["y1"], det["x2"], det["y2"]]
+            cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+            best, best_d = None, self.max_dist
+            for t in self.tracks:
+                if t["seen"] or t["name"] != det["name"]:
+                    continue
+                tx = (t["box"][0] + t["box"][2]) / 2
+                ty = (t["box"][1] + t["box"][3]) / 2
+                d = ((cx - tx) ** 2 + (cy - ty) ** 2) ** 0.5
+                if d < best_d:
+                    best, best_d = t, d
+            if best is None:
+                best = {"name": det["name"], "box": box, "seen": True, "missing": 0}
+                self.tracks.append(best)
+            else:
+                a = self.alpha
+                best["box"] = [a * n + (1 - a) * o for n, o in zip(box, best["box"])]
+                best["seen"], best["missing"] = True, 0
+            smoothed = dict(det)
+            smoothed["x1"], smoothed["y1"], smoothed["x2"], smoothed["y2"] = (int(v) for v in best["box"])
+            out.append(smoothed)
+        for t in self.tracks:
+            if not t["seen"]:
+                t["missing"] += 1
+        self.tracks = [t for t in self.tracks if t["missing"] <= self.max_missing]
+        return out
