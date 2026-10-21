@@ -179,3 +179,40 @@ class BoxSmoother:
                 t["missing"] += 1
         self.tracks = [t for t in self.tracks if t["missing"] <= self.max_missing]
         return out
+
+
+def classify(status):
+    """Turn a security status into one of 3 scan categories."""
+    s = str(status).lower()
+    if s in ("secure", "allowed"):
+        return "authorized"
+    if s in ("vulnerable", "warning", "inspection required"):
+        return "to inspect"
+    if s in ("compromised", "restricted", "not allowed"):
+        return "unauthorized"
+    return "unknown"
+
+
+def draw_scan_summary(frame, detections, get_info):
+    """Top-left panel: room scan result (counts + overall room status)."""
+    counts = {"authorized": 0, "to inspect": 0, "unauthorized": 0, "unknown": 0}
+    for det in detections:
+        counts[classify(get_info(det["name"]).get("status", ""))] += 1
+
+    if counts["unauthorized"] > 0:
+        room, room_color = "ROOM: VIOLATION", STATUS_COLORS["compromised"]
+    elif counts["to inspect"] > 0:
+        room, room_color = "ROOM: CHECK NEEDED", STATUS_COLORS["vulnerable"]
+    else:
+        room, room_color = "ROOM: CLEAR", STATUS_COLORS["secure"]
+
+    x, y, w, h = 10, 10, 250, 135
+    _fill_transparent(frame, (x, y), (x + w, y + h), (30, 30, 30), 0.75)
+    cv2.rectangle(frame, (x, y), (x + w, y + h), room_color, 2)
+    _text(frame, "ROOM SCAN", (x + 12, y + 26), 0.65, WHITE, 2)
+    _text(frame, f"Objects detected: {len(detections)}", (x + 12, y + 50))
+    _text(frame, f"Authorized: {counts['authorized']}", (x + 12, y + 70), 0.5, STATUS_COLORS["secure"])
+    _text(frame, f"To inspect: {counts['to inspect']}", (x + 12, y + 88), 0.5, STATUS_COLORS["vulnerable"])
+    _text(frame, f"Unauthorized: {counts['unauthorized']}", (x + 12, y + 106), 0.5, STATUS_COLORS["compromised"])
+    _text(frame, room, (x + 12, y + 128), 0.55, room_color, 2)
+    return frame
