@@ -96,6 +96,8 @@ def draw_overlay(frame, detection, info, selected=False, alert=False):
     x1, y1 = max(int(detection["x1"]), 0), max(int(detection["y1"]), 0)
     x2, y2 = min(int(detection["x2"]), w - 1), min(int(detection["y2"]), h - 1)
 
+    if classify(info.get("status", "")) == "unauthorized":
+        alert = True        # unauthorized items always trigger the alert
     status = "compromised" if alert else str(info.get("status", "secure")).lower()
     risk = max(0, min(100, int(info.get("risk_score", 0))))
     color = STATUS_COLORS.get(status, DEFAULT_COLOR)
@@ -115,12 +117,13 @@ def draw_overlay(frame, detection, info, selected=False, alert=False):
     if selected:
         _draw_panel(frame, (x1, y1, x2, y2), detection, info, status, risk, color)
 
-    # 5. alert effect: blinking red tint + warning banner
+    # 5. alert effect: blinking red tint + white border + warning banner
     if alert:
         if int(time.time() * 2) % 2 == 0:
-            _fill_transparent(frame, (x1, y1), (x2, y2), STATUS_COLORS["compromised"], 0.25)
-        _fill_transparent(frame, (x1, y2 - 30), (x2, y2), STATUS_COLORS["compromised"], 0.9)
-        _text(frame, "ALERT: DEVICE COMPROMISED", (x1 + 8, y2 - 10), 0.5, WHITE, 2)
+            _fill_transparent(frame, (x1, y1), (x2, y2), STATUS_COLORS["compromised"], 0.4)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), WHITE, 2)
+        _fill_transparent(frame, (x1, y2 - 36), (x2, y2), STATUS_COLORS["compromised"], 0.95)
+        _text(frame, "! ALERT: UNAUTHORIZED ITEM", (x1 + 8, y2 - 12), 0.55, WHITE, 2)
 
     return frame
 
