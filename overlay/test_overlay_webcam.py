@@ -2,10 +2,11 @@
 Soumaya - overlay + ROOM SCAN with the REAL webcam.
 Run from the project root:  python overlay/test_overlay_webcam.py
 Keys: click = select | a = alert on selected | f = alert on all | x = clear alerts
-      s = screenshot | q = quit
+      d = show/hide debug line | s = screenshot | q = quit
 """
 import os
 import sys
+import time
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -16,14 +17,16 @@ from ultralytics import YOLO
 from detector import detect          # Hiba
 from security import get_info        # Ghita
 
-detector.MIN_CONFIDENCE = 0.25            # accept weaker detections
+detector.MIN_CONFIDENCE = 0.30
 detector.model = YOLO("yolov8s.pt")       # bigger, more accurate model
+# stricter for the classes the model confuses (a mouse looks like a phone)
+MIN_CONF = {"cell phone": 0.55, "mouse": 0.45}
 
 DETECT_EVERY = 2
 os.makedirs("outputs", exist_ok=True)
 smoother = BoxSmoother()
 detections, selected_name, alert_names = [], None, set()
-seen = {}
+seen, raw_text, show_debug = {}, "YOLO sees: ...", True
 
 
 def on_mouse(event, x, y, flags, param):
@@ -48,8 +51,18 @@ while True:
     ok, frame = cap.read()
     if not ok:
         break
+    h, w = frame.shape[:2]
+
     if n % DETECT_EVERY == 0:
-        detections = smoother.update(detect(frame))
+        detections = smoother.update(
+            [d for d in detect(frame) if d["confidence"] >= MIN_CONF.get(d["name"], 0.30)]
+        )
+
+    # debug: what does YOLO see at all (every class, low confidence)?
+    if show_debug and n % 10 == 0:
+        res = detector.model(frame, conf=0.15, verbose=False)[0]
+        raw = [f"{detector.model.names[int(b.cls[0])]} {float(b.conf[0]):.2f}" for b in res.boxes]
+        raw_text = "YOLO sees: " + (", ".join(raw) if raw else "nothing")
     n += 1
 
     counts = {}
@@ -61,6 +74,20 @@ while True:
     sel_index = next((i for i, d in enumerate(detections) if d["name"] == selected_name), None)
     draw_all(frame, detections, get_info, selected_index=sel_index, alert_names=alert_names)
     draw_scan_summary(frame, detections, get_info)
+
+    # big alert banner at the bottom when something unauthorized is detected
+    unauth = [d for d in detections if classify(get_info(d["name"])["status"]) == "unauthorized"]
+    if unauth and int(time.time() * 2) % 2 == 0:
+        cv2.rectangle(frame, (0, h - 50), (w, h), (0, 0, 230), -1)
+        cv2.putText(frame, f"!!! ALERT: {len(unauth)} UNAUTHORIZED ITEM(S) !!!", (20, h - 16),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2, cv2.LINE_AA)
+
+    # debug line above the banner
+    if show_debug:
+        cv2.rectangle(frame, (0, h - 80), (w, h - 52), (0, 0, 0), -1)
+        cv2.putText(frame, raw_text[:90], (10, h - 59), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (0, 255, 255), 1, cv2.LINE_AA)
+
     cv2.imshow("Overlay + webcam", frame)
 
     key = cv2.waitKey(1) & 0xFF
@@ -72,6 +99,8 @@ while True:
         alert_names = {d["name"] for d in detections}
     elif key == ord("x"):
         alert_names.clear()
+    elif key == ord("d"):
+        show_debug = not show_debug
     elif key == ord("s"):
         cv2.imwrite("outputs/overlay_screenshot.png", frame)
         print("Saved outputs/overlay_screenshot.png")
