@@ -3,7 +3,7 @@ from ultralytics import YOLO
 # Classes we keep (edit this list if needed)
 USEFUL_CLASSES = {
     "laptop", "cell phone", "keyboard", "mouse", "tv",
-    "bottle", "cup", "book", "backpack", "person",
+      "book", "backpack", "person",
 }
 
 MIN_CONFIDENCE = 0.5
