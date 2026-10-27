@@ -18,15 +18,38 @@ from detector import detect          # Hiba
 from security import get_info        # Ghita
 
 detector.MIN_CONFIDENCE = 0.30
-detector.model = YOLO("yolov8s.pt")       # bigger, more accurate model
+detector.model = YOLO("yolov8m.pt")       # bigger model = more accurate (slower)
 # stricter for the classes the model confuses (a mouse looks like a phone)
-MIN_CONF = {"cell phone": 0.55, "mouse": 0.45}
+MIN_CONF = {"cell phone": 0.75, "mouse": 0.40}
 
-DETECT_EVERY = 2
+DETECT_EVERY = 3
 os.makedirs("outputs", exist_ok=True)
 smoother = BoxSmoother()
 detections, selected_name, alert_names = [], None, set()
 seen, raw_text, show_debug = {}, "YOLO sees: ...", True
+
+
+def iou(a, b):
+    """Overlap between two detections (0 = none, 1 = identical boxes)."""
+    ix1, iy1 = max(a["x1"], b["x1"]), max(a["y1"], b["y1"])
+    ix2, iy2 = min(a["x2"], b["x2"]), min(a["y2"], b["y2"])
+    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+    area_a = (a["x2"] - a["x1"]) * (a["y2"] - a["y1"])
+    area_b = (b["x2"] - b["x1"]) * (b["y2"] - b["y1"])
+    union = area_a + area_b - inter
+    return inter / union if union > 0 else 0
+
+
+def clean(dets):
+    """Apply per-class thresholds, then if two different classes cover the same
+    object (e.g. mouse + cell phone), keep only the more confident one."""
+    dets = [d for d in dets if d["confidence"] >= MIN_CONF.get(d["name"], 0.30)]
+    dets.sort(key=lambda d: d["confidence"], reverse=True)
+    kept = []
+    for d in dets:
+        if all(not (iou(d, k) > 0.5 and d["name"] != k["name"]) for k in kept):
+            kept.append(d)
+    return kept
 
 
 def on_mouse(event, x, y, flags, param):
@@ -54,9 +77,7 @@ while True:
     h, w = frame.shape[:2]
 
     if n % DETECT_EVERY == 0:
-        detections = smoother.update(
-            [d for d in detect(frame) if d["confidence"] >= MIN_CONF.get(d["name"], 0.30)]
-        )
+        detections = smoother.update(clean(detect(frame)))
 
     # debug: what does YOLO see at all (every class, low confidence)?
     if show_debug and n % 10 == 0:
