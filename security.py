@@ -17,8 +17,6 @@ SECURITY_RULES = {
                    "description": "Laptops are forbidden during the exam"},
     "keyboard":   {"role": "electronic device", "risk_score": 70, "status": "Not allowed",
                    "description": "Electronic devices are forbidden"},
-    "mouse":      {"role": "electronic device", "risk_score": 70, "status": "Not allowed",
-                   "description": "Electronic devices are forbidden"},
     "tv":         {"role": "electronic device", "risk_score": 70, "status": "Not allowed",
                    "description": "Screens are forbidden during the exam"},
     "book":       {"role": "notes / documents", "risk_score": 75, "status": "Not allowed",

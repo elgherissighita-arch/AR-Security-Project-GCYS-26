@@ -3,13 +3,13 @@ import numpy as np
 
 from overlay import draw_overlay
 
-# Fake detection (this will come from Hiba) and fake info (from Ghita)
-detection = {"name": "laptop", "confidence": 0.94, "x1": 80, "y1": 120, "x2": 400, "y2": 380}
+# Fake detection and fake security info, only to test the drawing
+detection = {"name": "backpack", "confidence": 0.94, "x1": 80, "y1": 120, "x2": 400, "y2": 380}
 info = {
-    "role": "Workstation",
-    "status": "vulnerable",
-    "risk_score": 65,
-    "description": "Security update required",
+    "role": "Bag to inspect",
+    "status": "Inspection required",
+    "risk_score": 50,
+    "description": "Bags must be inspected and left at the front",
 }
 
 # Keys: s = selected panel on/off, a = alert on/off, 1/2/3 = secure/vulnerable/compromised, q = quit

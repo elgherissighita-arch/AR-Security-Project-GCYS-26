@@ -1,5 +1,5 @@
 """
-Soumaya - overlay + ROOM SCAN with the REAL webcam.
+Soumaya and Asma - overlay + ROOM SCAN with the REAL webcam.
 Run from the project root:  python overlay/test_overlay_webcam.py
 Keys: click = select | a = alert on selected | f = alert on all | x = clear alerts
       d = show/hide debug line | s = screenshot | q = quit
@@ -14,19 +14,19 @@ import cv2
 from overlay import draw_all, BoxSmoother, draw_scan_summary, classify
 import detector
 from ultralytics import YOLO
-from detector import detect          # Hiba
-from security import get_info        # Ghita
+from detector import detect
+from security import get_info
 
 detector.MIN_CONFIDENCE = 0.30
 detector.model = YOLO("yolov8m.pt")       # bigger model = more accurate (slower)
-# stricter for the classes the model confuses (a mouse looks like a phone)
-MIN_CONF = {"cell phone": 0.75, "mouse": 0.40}
+# stricter threshold for the class the model confuses most (a mouse looks like a phone)
+MIN_CONF = {"cell phone": 0.75}
 
 DETECT_EVERY = 3
 os.makedirs("outputs", exist_ok=True)
 smoother = BoxSmoother()
 detections, selected_name, alert_names = [], None, set()
-seen, raw_text, show_debug = {}, "YOLO sees: ...", True
+seen, raw_text, show_debug = {}, "YOLO sees: ...", False
 
 
 def iou(a, b):
@@ -42,7 +42,7 @@ def iou(a, b):
 
 def clean(dets):
     """Apply per-class thresholds, then if two different classes cover the same
-    object (e.g. mouse + cell phone), keep only the more confident one."""
+    object, keep only the more confident one."""
     dets = [d for d in dets if d["confidence"] >= MIN_CONF.get(d["name"], 0.30)]
     dets.sort(key=lambda d: d["confidence"], reverse=True)
     kept = []
@@ -79,7 +79,7 @@ while True:
     if n % DETECT_EVERY == 0:
         detections = smoother.update(clean(detect(frame)))
 
-    # debug: what does YOLO see at all (every class, low confidence)?
+    # debug (key d): what does YOLO see at all, every class, low confidence
     if show_debug and n % 10 == 0:
         res = detector.model(frame, conf=0.15, verbose=False)[0]
         raw = [f"{detector.model.names[int(b.cls[0])]} {float(b.conf[0]):.2f}" for b in res.boxes]
@@ -103,7 +103,7 @@ while True:
         cv2.putText(frame, f"!!! ALERT: {len(unauth)} UNAUTHORIZED ITEM(S) !!!", (20, h - 16),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2, cv2.LINE_AA)
 
-    # debug line above the banner
+    # debug line above the banner (hidden by default)
     if show_debug:
         cv2.rectangle(frame, (0, h - 80), (w, h - 52), (0, 0, 0), -1)
         cv2.putText(frame, raw_text[:90], (10, h - 59), cv2.FONT_HERSHEY_SIMPLEX, 0.5,

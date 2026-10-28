@@ -1,5 +1,5 @@
 """
-Module 2 - AR Overlay (Soumaya)
+Module 2 - AR Overlay (Soumaya and Asma)
 
 Draws the virtual cybersecurity interface on top of a camera frame.
 Main function:  draw_overlay(frame, detection, info, selected=False, alert=False)
@@ -87,9 +87,9 @@ def _draw_panel(frame, box, detection, info, status, risk, color):
 def draw_overlay(frame, detection, info, selected=False, alert=False):
     """
     frame     : BGR image from the webcam (modified in place and returned)
-    detection : {"name", "confidence", "x1", "y1", "x2", "y2"}   (from Hiba)
-    info      : {"role", "status", "risk_score", "description"}  (from Ghita)
-    selected  : True -> show the details panel                   (from Asma)
+    detection : {"name", "confidence", "x1", "y1", "x2", "y2"}   (from the detector)
+    info      : {"role", "status", "risk_score", "description"}  (from the security rules)
+    selected  : True -> show the details panel                   (object clicked by the user)
     alert     : True -> red blinking alert (simulated attack)
     """
     h, w = frame.shape[:2]
